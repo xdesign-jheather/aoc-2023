@@ -86,6 +86,24 @@ func (g *Grid) Points() Points {
 
 type Points []Point
 
+func (p Points) Overlap(other Points) bool {
+	seen := map[[2]int]bool{}
+
+	for _, pnt := range p {
+		seen[[2]int{pnt.X, pnt.Y}] = true
+	}
+
+	for _, pnt := range other {
+		k := [2]int{pnt.X, pnt.Y}
+
+		if seen[k] {
+			return true
+		}
+	}
+
+	return false
+}
+
 func (p Points) Neighbors(grid *Grid) Points {
 	self := map[int]bool{}
 
@@ -142,12 +160,14 @@ func main() {
 	grid := loadGrid(path)
 
 	puzzle1(grid)
+
+	puzzle2(grid)
 }
 
 func puzzle1(grid *Grid) {
 	total := 0
 
-	for points := range numbers(grid) {
+	for _, points := range numbers(grid) {
 		str := grid.String(points)
 
 		num, err := strconv.Atoi(string(str))
@@ -166,34 +186,90 @@ func puzzle1(grid *Grid) {
 	fmt.Println(total)
 }
 
-func numbers(grid *Grid) chan Points {
-	ch := make(chan Points)
+func puzzle2(grid *Grid) {
+	total := 0
 
-	go func() {
-		var points Points
+	allNumbers := numbers(grid)
 
-		for pos, char := range grid.data {
-			switch {
-			case char >= '0' && char <= '9':
-				y := int(math.Floor(float64(pos / grid.size)))
-				x := pos - (y * grid.size)
+	for _, gear := range gears(grid) {
+		var nums []Points
 
-				points = append(points, Point{
-					X: x,
-					Y: y,
-				})
-			default:
-				if len(points) > 0 {
-					ch <- points
-				}
-				points = nil
+		for _, num := range allNumbers {
+			if gear.Neighbors(grid).Overlap(num) {
+				nums = append(nums, num)
 			}
 		}
 
-		close(ch)
-	}()
+		if len(nums) != 2 {
+			continue
+		}
 
-	return ch
+		total += ratio(nums[0], nums[1], grid)
+	}
+
+	fmt.Println(total)
+}
+
+func ratio(num1 Points, num2 Points, grid *Grid) int {
+	n1, err := strconv.Atoi(string(grid.String(num1)))
+
+	if err != nil {
+		panic(err)
+	}
+
+	n2, err := strconv.Atoi(string(grid.String(num2)))
+
+	if err != nil {
+		panic(err)
+	}
+
+	return n1 * n2
+}
+
+func numbers(grid *Grid) []Points {
+	var nums []Points
+
+	var points Points
+
+	for pos, char := range grid.data {
+		switch {
+		case char >= '0' && char <= '9':
+			y := int(math.Floor(float64(pos / grid.size)))
+			x := pos - (y * grid.size)
+
+			points = append(points, Point{
+				X: x,
+				Y: y,
+			})
+		default:
+			if len(points) > 0 {
+				nums = append(nums, points)
+			}
+			points = nil
+		}
+	}
+
+	return nums
+}
+
+func gears(grid *Grid) []Point {
+	var grs []Point
+
+	for pos, char := range grid.data {
+		if char != '*' {
+			continue
+		}
+
+		y := int(math.Floor(float64(pos / grid.size)))
+		x := pos - (y * grid.size)
+
+		grs = append(grs, Point{
+			X: x,
+			Y: y,
+		})
+	}
+
+	return grs
 }
 
 func loadGrid(path string) *Grid {
