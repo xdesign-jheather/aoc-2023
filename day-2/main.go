@@ -8,14 +8,18 @@ import (
 	"strings"
 )
 
-const Red = "red"
-const Blue = "blue"
-const Green = "green"
+const (
+	Red   = "red"
+	Blue  = "blue"
+	Green = "green"
+)
 
 func main() {
 	path := os.Args[1]
 
 	puzzle1(path)
+
+	puzzle2(path)
 }
 
 type Game struct {
@@ -76,6 +80,17 @@ func puzzle1(path string) {
 	fmt.Println(total)
 }
 
+func puzzle2(path string) {
+	total := 0
+
+	for game := range games(path) {
+		r, g, b := minimum(game)
+		total += r * g * b
+	}
+
+	fmt.Println(total)
+}
+
 func games(path string) chan Game {
 	ch := make(chan Game)
 
@@ -131,4 +146,43 @@ func possible(game Game) bool {
 		}
 	}
 	return true
+}
+
+func minimumState() (func(int), func(int), func(int), func() (int, int, int)) {
+	r, g, b := 0, 0, 0
+
+	return func(i int) {
+			if i > r {
+				r = i
+			}
+		}, func(i int) {
+			if i > g {
+				g = i
+			}
+		}, func(i int) {
+			if i > b {
+				b = i
+			}
+		},
+		func() (int, int, int) {
+			return r, g, b
+		}
+}
+
+func minimum(game Game) (int, int, int) {
+	r, g, b, result := minimumState()
+
+	for _, hand := range game.Hands {
+		if hand.Colour == Red {
+			r(hand.Count)
+		}
+		if hand.Colour == Green {
+			g(hand.Count)
+		}
+		if hand.Colour == Blue {
+			b(hand.Count)
+		}
+	}
+
+	return result()
 }
