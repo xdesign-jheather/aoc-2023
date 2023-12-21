@@ -6,8 +6,6 @@ import (
 	"io"
 	"os"
 	"regexp"
-	"strconv"
-	"strings"
 )
 
 func main() {
@@ -19,7 +17,6 @@ func main() {
 type Games []Game
 
 type Game struct {
-	ID      int
 	Winning []string
 	Have    []string
 }
@@ -67,11 +64,6 @@ func puzzle1(path string) {
 	for _, game := range parse(f) {
 		score := game.Score()
 
-		fmt.Printf("%+v\n", game)
-		fmt.Println(len(game.Have), len(game.Winning))
-		fmt.Println("Won", game.Won())
-		fmt.Println("Score", score)
-
 		total += score
 	}
 
@@ -81,7 +73,8 @@ func puzzle1(path string) {
 }
 
 func parse(f io.Reader) Games {
-	re := regexp.MustCompile(" +")
+	re1 := regexp.MustCompile("(: +| \\| +)")
+	re2 := regexp.MustCompile(" +")
 
 	var games Games
 
@@ -90,18 +83,11 @@ func parse(f io.Reader) Games {
 	for scanner.Scan() {
 		line := scanner.Text()
 
-		line = strings.Replace(line, "Card ", "", -1)
-		line = strings.Replace(line, ":", " |", -1)
-		parts := strings.Split(line, " | ")
-
-		fmt.Println(parts)
-
-		id, _ := strconv.Atoi(parts[0])
+		parts := re1.Split(line, -1)
 
 		games = append(games, Game{
-			ID:      id,
-			Winning: re.Split(parts[1], -1),
-			Have:    re.Split(parts[2], -1),
+			Winning: re2.Split(parts[1], -1),
+			Have:    re2.Split(parts[2], -1),
 		})
 	}
 
