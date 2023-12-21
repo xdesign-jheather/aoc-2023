@@ -104,12 +104,16 @@ func puzzle2(path string) {
 
 	type recurse func(i int, f recurse)
 
+	wins := map[int]int{}
+
+	for i := range games {
+		wins[i] = len(games[i].Won())
+	}
+
 	walk := recurse(func(i int, f recurse) {
 		inc(games[i].ID)
 
-		wins := len(games[i].Won())
-
-		for off := 1; off <= wins; off++ {
+		for off := 1; off <= wins[i]; off++ {
 			f(i+off, f)
 		}
 	})
