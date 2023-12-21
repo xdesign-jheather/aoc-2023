@@ -18,12 +18,38 @@ func main() {
 	if puzzle == "1" {
 		puzzle1(path)
 	}
+
+	if puzzle == "2" {
+		puzzle2(path)
+	}
+}
+
+func seedRanges(data []int) <-chan int {
+	ch := make(chan int)
+
+	go func() {
+		for i := 0; i < len(data); i += 2 {
+			start, length := data[i], data[i+1]
+
+			for x := 0; x < length; x++ {
+				ch <- start + x
+			}
+		}
+		close(ch)
+	}()
+
+	return ch
 }
 
 func puzzle1(path string) {
-	f, _ := os.Open(path)
+	f1, _ := os.Open(path)
+	f2, _ := os.Open(path)
 
-	allSeeds, mappers := parse(f)
+	mappers := parseMappers(f1)
+	allSeeds := parseSeeds(f2)
+
+	_ = f1.Close()
+	_ = f2.Close()
 
 	lowest := -1
 
@@ -46,8 +72,32 @@ func puzzle1(path string) {
 	}
 
 	fmt.Println(lowest)
+}
 
-	_ = f.Close()
+func puzzle2(path string) {
+	f1, _ := os.Open(path)
+	f2, _ := os.Open(path)
+
+	mappers := parseMappers(f1)
+	allSeeds := seedRanges(parseSeeds(f2))
+
+	_ = f1.Close()
+	_ = f2.Close()
+
+	lowest := -1
+
+	for seed := range allSeeds {
+		location := mappers.Resolve(seed)
+
+		switch {
+		case lowest == -1:
+			lowest = location
+		case location < lowest:
+			lowest = location
+		}
+	}
+
+	fmt.Println(lowest)
 }
 
 func mapperFactory() (func(string), func() Mappers) {
@@ -61,7 +111,7 @@ func mapperFactory() (func(string), func() Mappers) {
 					Name: strings.TrimSuffix(line, " map:"),
 				}
 			case build != nil && line == "":
-				mappers = append(mappers, *build)
+				mappers = append(mappers, build)
 				build = nil
 			case line == "":
 			default:
@@ -75,26 +125,34 @@ func mapperFactory() (func(string), func() Mappers) {
 				n2, _ := strconv.Atoi(parts[1])
 				n3, _ := strconv.Atoi(parts[2])
 
-				build.Mappings = append(build.Mappings, Mapping{
+				build.Mappings = append(build.Mappings, &Mapping{
 					n1, n2, n3,
 				})
 			}
 
 		}, func() Mappers {
 			if build != nil {
-				mappers = append(mappers, *build)
+				mappers = append(mappers, build)
 				build = nil
 			}
 			return mappers
 		}
 }
 
-func parse(f io.Reader) ([]int, Mappers) {
+func parseSeeds(f io.Reader) []int {
 	scanner := bufio.NewScanner(f)
 
 	scanner.Scan()
 
-	line0 := scanner.Text()
+	line := scanner.Text()
+
+	return seeds(line)
+}
+
+func parseMappers(f io.Reader) Mappers {
+	scanner := bufio.NewScanner(f)
+
+	scanner.Scan()
 
 	build, results := mapperFactory()
 
@@ -102,7 +160,7 @@ func parse(f io.Reader) ([]int, Mappers) {
 		build(scanner.Text())
 	}
 
-	return seeds(line0), results()
+	return results()
 }
 
 func seeds(line string) []int {
@@ -125,7 +183,7 @@ func seeds(line string) []int {
 	return nums
 }
 
-type Mappers []Mapper
+type Mappers []*Mapper
 
 func (m Mappers) Resolve(number int) int {
 	for _, mapper := range m {
@@ -139,23 +197,18 @@ type Mapper struct {
 	Mappings Mappings
 }
 
-func (m Mapper) Resolve(number int) int {
-	fmt.Printf("Entered %s mapper with %d\n", m.Name, number)
-
+func (m *Mapper) Resolve(number int) int {
 	for _, mapping := range m.Mappings {
 		if ok, result := mapping.Resolve(number); ok {
-			fmt.Printf("Mapping %+v worked and produced %d\n", mapping, result)
 			return result
 		}
-		fmt.Printf("Mapping %+v missed!\n", mapping)
 	}
-	fmt.Printf("Must be equivalent!\n")
 	return number
 }
 
 type Mapping [3]int
 
-func (m Mapping) Resolve(number int) (bool, int) {
+func (m *Mapping) Resolve(number int) (bool, int) {
 	dest, source, length := m[0], m[1], m[2]
 
 	if number < source || number > source+length-1 {
@@ -165,4 +218,4 @@ func (m Mapping) Resolve(number int) (bool, int) {
 	return true, number - (source - dest)
 }
 
-type Mappings []Mapping
+type Mappings []*Mapping
