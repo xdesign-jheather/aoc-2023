@@ -3,7 +3,6 @@ package main
 import (
 	"bufio"
 	"fmt"
-	"io"
 	"os"
 	"regexp"
 	"strconv"
@@ -42,19 +41,12 @@ func seedRanges(data []int) <-chan int {
 }
 
 func puzzle1(path string) {
-	f1, _ := os.Open(path)
-	f2, _ := os.Open(path)
-
-	mappers := parseMappers(f1)
-	allSeeds := parseSeeds(f2)
-
-	_ = f1.Close()
-	_ = f2.Close()
+	mappers := parseMappers(path)
+	allSeeds := parseSeeds(path)
 
 	lowest := -1
 
 	for _, seed := range allSeeds {
-
 		fmt.Println("Start with seed", seed)
 
 		location := mappers.Resolve(seed)
@@ -75,14 +67,8 @@ func puzzle1(path string) {
 }
 
 func puzzle2(path string) {
-	f1, _ := os.Open(path)
-	f2, _ := os.Open(path)
-
-	mappers := parseMappers(f1)
-	allSeeds := seedRanges(parseSeeds(f2))
-
-	_ = f1.Close()
-	_ = f2.Close()
+	mappers := parseMappers(path)
+	allSeeds := seedRanges(parseSeeds(path))
 
 	lowest := -1
 
@@ -139,17 +125,31 @@ func mapperFactory() (func(string), func() Mappers) {
 		}
 }
 
-func parseSeeds(f io.Reader) []int {
+func parseSeeds(path string) []int {
+	f, err := os.Open(path)
+
+	if err != nil {
+		panic(err)
+	}
+
 	scanner := bufio.NewScanner(f)
 
 	scanner.Scan()
 
 	line := scanner.Text()
 
+	_ = f.Close()
+
 	return seeds(line)
 }
 
-func parseMappers(f io.Reader) Mappers {
+func parseMappers(path string) Mappers {
+	f, err := os.Open(path)
+
+	if err != nil {
+		panic(err)
+	}
+
 	scanner := bufio.NewScanner(f)
 
 	scanner.Scan()
@@ -159,6 +159,8 @@ func parseMappers(f io.Reader) Mappers {
 	for scanner.Scan() {
 		build(scanner.Text())
 	}
+
+	_ = f.Close()
 
 	return results()
 }
