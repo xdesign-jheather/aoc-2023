@@ -6,6 +6,7 @@ import (
 	"os"
 	"regexp"
 	"strconv"
+	"strings"
 )
 
 func main() {
@@ -16,10 +17,28 @@ func main() {
 	if puzzle == "1" {
 		puzzle1(path)
 	}
+
+	if puzzle == "2" {
+		puzzle2(path)
+	}
 }
 
 func puzzle1(path string) {
 	races := parseRaces(path)
+
+	product := 1
+
+	for _, race := range races {
+		fmt.Printf("%+v\n", race)
+
+		product *= len(race.Breakers())
+	}
+
+	fmt.Println(product)
+}
+
+func puzzle2(path string) {
+	races := parseRace(path)
 
 	product := 1
 
@@ -70,6 +89,42 @@ func parseRaces(path string) []Race {
 	_ = f.Close()
 
 	return races
+}
+
+func parseRace(path string) []Race {
+	f, err := os.Open(path)
+
+	if err != nil {
+		panic(err)
+	}
+
+	re := regexp.MustCompile("[0-9]+")
+
+	scanner := bufio.NewScanner(f)
+
+	scanner.Scan()
+
+	times := re.FindAllString(scanner.Text(), -1)
+
+	scanner.Scan()
+
+	distances := re.FindAllString(scanner.Text(), -1)
+
+	if len(times) != len(distances) {
+		panic("times and distance count off")
+	}
+
+	_ = f.Close()
+
+	time, _ := strconv.Atoi(strings.Join(times, ""))
+	distance, _ := strconv.Atoi(strings.Join(distances, ""))
+
+	return []Race{
+		{
+			Time:     time,
+			Distance: distance,
+		},
+	}
 }
 
 type Race struct {
