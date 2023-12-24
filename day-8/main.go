@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"regexp"
+	"time"
 )
 
 func main() {
@@ -14,6 +15,12 @@ func main() {
 
 	if puzzle == "1" {
 		puzzle1(path)
+	}
+
+	if puzzle == "2" {
+		fmt.Println(time.Now())
+		puzzle2(path)
+		fmt.Println(time.Now())
 	}
 }
 
@@ -42,6 +49,86 @@ func puzzle1(path string) {
 	}
 
 	fmt.Println(count, pos)
+}
+
+type channels struct {
+	In  chan<- string
+	Out <-chan string
+}
+
+func startWorker(pos string, m map[string]LR) channels {
+	in := make(chan string)
+	out := make(chan string)
+
+	go func() {
+		for direction := range in {
+			switch direction {
+			case "L":
+				pos = m[pos].Left()
+			case "R":
+				pos = m[pos].Right()
+			}
+
+			out <- pos
+		}
+	}()
+
+	return channels{
+		In:  in,
+		Out: out,
+	}
+}
+
+func puzzle2(path string) {
+	m := parseMap(path)
+
+	workers := map[string]channels{}
+
+	nodes := startNodes(m)
+
+	for i := range nodes {
+		workers[nodes[i]] = startWorker(nodes[i], m)
+	}
+
+	count := 0
+
+	for direction := range repeatDirections(parseDirections(path)) {
+		for i := range nodes {
+			workers[nodes[i]].In <- direction
+		}
+
+		z := true
+
+		for i := range nodes {
+			v := <-workers[nodes[i]].Out
+			if v[2] != 'Z' {
+				z = false
+			}
+		}
+
+		count++
+
+		if count%1000000 == 0 {
+			fmt.Print(".")
+		}
+
+		if z {
+			fmt.Println(count)
+			return
+		}
+	}
+}
+
+func startNodes(m map[string]LR) []string {
+	var nodes []string
+
+	for x := range m {
+		if x[2] == 'A' {
+			nodes = append(nodes, x)
+		}
+	}
+
+	return nodes
 }
 
 func repeatDirections(directions string) <-chan string {
@@ -85,7 +172,7 @@ func parseMap(path string) map[string]LR {
 
 	scanner.Scan()
 
-	re := regexp.MustCompile("([A-Z]{3}) = \\(([A-Z]{3}), ([A-Z]{3})\\)")
+	re := regexp.MustCompile("([A-Z0-9]{3}) = \\(([A-Z0-9]{3}), ([A-Z0-9]{3})\\)")
 
 	result := map[string]LR{}
 
